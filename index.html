@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MÁY QUÉT VƯỢT NGỤC V1</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #2c3e50; color: white; margin: 0; padding: 10px; }
+        #reader { width: 100%; max-width: 500px; margin: 20px auto; border-radius: 10px; overflow: hidden; }
+        #status { padding: 20px; margin: 10px; border-radius: 10px; background: white; color: #333; font-weight: bold; }
+        input { width: 80%; padding: 10px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h2>🚀 MÁY QUÉT VƯỢT NGỤC V1</h2>
+    <div id="reader"></div>
+    <div id="status">Vui lòng nhập Link Web App Google Script vào dưới đây:</div>
+    <input type="text" id="scriptUrl" placeholder="Dán Web App URL vào đây..." onchange="saveUrl()">
+    <p><small>(Chỉ cần dán 1 lần, máy sẽ nhớ cho lần sau)</small></p>
+
+    <script>
+        var html5QrCode = new Html5Qrcode("reader");
+        var isProcessing = false;
+
+        // Lưu URL vào bộ nhớ điện thoại
+        if(localStorage.getItem('gasUrl')) {
+            document.getElementById('scriptUrl').value = localStorage.getItem('gasUrl');
+            startScanner();
+        }
+
+        function saveUrl() {
+            localStorage.setItem('gasUrl', document.getElementById('scriptUrl').value);
+            startScanner();
+        }
+
+        function startScanner() {
+            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScanSuccess)
+            .then(() => { document.getElementById('status').innerHTML = "🎯 Sẵn sàng quét mã!"; });
+        }
+
+        function onScanSuccess(decodedText) {
+            if (isProcessing) return;
+            isProcessing = true;
+            var url = document.getElementById('scriptUrl').value;
+            if(!url) { alert("Chưa có Link Google Script!"); isProcessing = false; return; }
+
+            document.getElementById('status').innerHTML = "⏳ Đang gửi dữ liệu...";
+            
+            // Gửi dữ liệu về Google bằng JSONP để vượt rào bảo mật
+            fetch(url + "?maSV=" + decodedText)
+            .then(response => response.json())
+            .then(data => {
+                var statusDiv = document.getElementById('status');
+                statusDiv.innerHTML = data.msg;
+                statusDiv.style.backgroundColor = (data.result === "success") ? "#2ecc71" : "#e74c3c";
+                statusDiv.style.color = "white";
+                setTimeout(() => { 
+                    statusDiv.innerHTML = "🎯 Mời bạn tiếp theo..."; 
+                    statusDiv.style.backgroundColor = "white"; 
+                    statusDiv.style.color = "#333";
+                    isProcessing = false; 
+                }, 2500);
+            })
+            .catch(err => {
+                alert("Lỗi kết nối Google: " + err);
+                isProcessing = false;
+            });
+        }
+    </script>
+</body>
+</html>
