@@ -3,70 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MÁY QUÉT VƯỢT NGỤC V1</title>
+    <title>Hệ Thống Điểm Danh - East Asian Studies</title>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         body { font-family: sans-serif; text-align: center; background: #2c3e50; color: white; margin: 0; padding: 10px; }
-        #reader { width: 100%; max-width: 500px; margin: 20px auto; border-radius: 10px; overflow: hidden; }
+        #reader { width: 100%; max-width: 500px; margin: 20px auto; border-radius: 10px; overflow: hidden; border: 2px solid #34495e; background: #000; }
         #status { padding: 20px; margin: 10px; border-radius: 10px; background: white; color: #333; font-weight: bold; }
-        input { width: 80%; padding: 10px; margin-top: 10px; }
+        input { width: 90%; max-width: 400px; padding: 12px; margin-top: 10px; border-radius: 5px; border: none; font-size: 14px; }
+        .btn-action { padding: 12px 25px; margin-top: 15px; background: #e74c3c; color: white; border: none; border-radius: 50px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
-    <h2>🚀 MÁY QUÉT VƯỢT NGỤC V1</h2>
+    <h2>🚀 HỆ THỐNG ĐIỂM DANH V1.3</h2>
+    <p>Ngành Đông phương học - Đại học Văn Lang</p>
+    
     <div id="reader"></div>
-    <div id="status">Vui lòng nhập Link Web App Google Script vào dưới đây:</div>
-    <input type="text" id="scriptUrl" placeholder="Dán Web App URL vào đây..." onchange="saveUrl()">
-    <p><small>(Chỉ cần dán 1 lần, máy sẽ nhớ cho lần sau)</small></p>
+    <div id="status">Dán Link Web App của lớp vào đây để mở Camera</div>
+    <input type="text" id="scriptUrl" placeholder="Dán Web App URL của lớp này vào...">
+    <br>
+    <button class="btn-action" onclick="startApp()">🔓 MỞ MÁY QUÉT</button>
 
     <script>
         var html5QrCode = new Html5Qrcode("reader");
         var isProcessing = false;
+        var currentUrl = "";
+        var audioCtx = null;
 
-        // Lưu URL vào bộ nhớ điện thoại
-        if(localStorage.getItem('gasUrl')) {
-            document.getElementById('scriptUrl').value = localStorage.getItem('gasUrl');
-            startScanner();
-        }
-
-        function saveUrl() {
-            localStorage.setItem('gasUrl', document.getElementById('scriptUrl').value);
-            startScanner();
-        }
-
-        function startScanner() {
-            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScanSuccess)
-            .then(() => { document.getElementById('status').innerHTML = "🎯 Sẵn sàng quét mã!"; });
+        function startApp() {
+            // Khởi tạo âm thanh khi người dùng bấm nút (để lách luật bảo mật trình duyệt)
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            var url = document.getElementById('scriptUrl').value;
+            if(url.includes("script.google.com")) {
+                currentUrl = url;
+                document.getElementById('status').innerHTML = "🎯 Đang khởi động camera...";
+                html5QrCode.start(
+                    { facingMode: "environment" }, 
+                    { fps: 10, qrbox: 250 }, 
+                    onScanSuccess
+                ).then(() => { 
+                    document.getElementById('status').innerHTML = "🎯 Mời sinh viên quét mã QR"; 
+                    document.getElementById('status').style.backgroundColor = "#2ecc71";
+                    document.getElementById('status').style.color = "white";
+                }).catch(err => {
+                    document.getElementById('status').innerHTML = "⚠️ Lỗi Camera: Hãy cấp quyền!";
+                    document.getElementById('status').style.backgroundColor = "#e74c3c";
+                });
+            } else {
+                alert("Link Web App không hợp lệ!");
+            }
         }
 
         function onScanSuccess(decodedText) {
             if (isProcessing) return;
             isProcessing = true;
-            var url = document.getElementById('scriptUrl').value;
-            if(!url) { alert("Chưa có Link Google Script!"); isProcessing = false; return; }
 
-            document.getElementById('status').innerHTML = "⏳ Đang gửi dữ liệu...";
+            document.getElementById('status').innerHTML = "⏳ Đang xử lý: " + decodedText;
+            document.getElementById('status').style.backgroundColor = "#f1c40f";
+            document.getElementById('status').style.color = "#333";
             
-            // Gửi dữ liệu về Google bằng JSONP để vượt rào bảo mật
-            fetch(url + "?maSV=" + decodedText)
+            fetch(currentUrl + "?maSV=" + decodedText)
             .then(response => response.json())
             .then(data => {
                 var statusDiv = document.getElementById('status');
                 statusDiv.innerHTML = data.msg;
-                statusDiv.style.backgroundColor = (data.result === "success") ? "#2ecc71" : "#e74c3c";
-                statusDiv.style.color = "white";
+                
+                if (data.result === "success") {
+                    statusDiv.style.backgroundColor = "#2ecc71";
+                    statusDiv.style.color = "white";
+                    playBeep(800, 200); // Tiếng "Ting" cao vút
+                } else {
+                    statusDiv.style.backgroundColor = "#e74c3c";
+                    statusDiv.style.color = "white";
+                    playBeep(250, 600); // Tiếng "Bíp" trầm buồn
+                }
+                
                 setTimeout(() => { 
                     statusDiv.innerHTML = "🎯 Mời bạn tiếp theo..."; 
-                    statusDiv.style.backgroundColor = "white"; 
-                    statusDiv.style.color = "#333";
+                    statusDiv.style.backgroundColor = "#2ecc71"; 
                     isProcessing = false; 
+                    html5QrCode.resume();
                 }, 2500);
             })
             .catch(err => {
-                alert("Lỗi kết nối Google: " + err);
+                alert("Lỗi kết nối!");
                 isProcessing = false;
             });
         }
+
+        // Hàm tạo âm thanh không cần file mp3
+        function playBeep(freq, duration) {
+            if (!audioCtx) return;
+            var oscillator = audioCtx.createOscillator();
+            var gainNode = audioCtx.createGain();
+            oscillator.type = "sine";
+            oscillator.frequency.value = freq;
+            gainNode.gain.value = 0.5;
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + (duration/1000));
+        }
     </script>
 </body>
-</html> 
+</html>
